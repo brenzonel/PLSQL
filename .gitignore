@@ -30,3 +30,14 @@
 *.exe
 *.out
 *.app
+
+#Enviroments
+*.env
+
+# Others
+*.pdf
+*.mp3
+*.mp4
+*.html
+*.zip
+*.rar
