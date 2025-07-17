@@ -105,7 +105,16 @@ END;
 /
 
 /******************************************/
-
+/* pr_employees table
+Name      Null?    Type         
+--------- -------- ------------ 
+EMP_ID    NOT NULL NUMBER       
+EMP_NAME           VARCHAR2(50) 
+EMAIL              VARCHAR2(50) 
+JOB_ID             NUMBER       
+SALARY             NUMBER       
+HIRE_DATE          DATE
+*/
 --SQL en bloques de PLSQL / SQL inside PLSQL Blocks
 --DML Select con tabla pr_employees / DML Select with table pr_employees
 DECLARE 

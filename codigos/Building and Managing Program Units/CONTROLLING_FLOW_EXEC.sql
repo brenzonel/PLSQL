@@ -1,4 +1,14 @@
 --Controlando el flujo de ejecucion / Controlling the flow of execution
+/* pr_employees table
+Name      Null?    Type         
+--------- -------- ------------ 
+EMP_ID    NOT NULL NUMBER       
+EMP_NAME           VARCHAR2(50) 
+EMAIL              VARCHAR2(50) 
+JOB_ID             NUMBER       
+SALARY             NUMBER       
+HIRE_DATE          DATE
+*/
 /*Condicionales en el codigo / Conditional branching in code*/
 --IF-THEN
 DECLARE 
