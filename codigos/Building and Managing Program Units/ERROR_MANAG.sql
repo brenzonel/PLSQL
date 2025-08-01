@@ -57,3 +57,123 @@ END;
 /
 
 --Definir excepciones propias / Define own exceptions -> name EXCEPTION;
+CREATE OR REPLACE PROCEDURE proc_salary (salary IN NUMBER) IS
+    e_salary_low EXCEPTION;
+    PRAGMA EXCEPTION_INIT ( e_salary_low, -20900);
+BEGIN
+    IF salary <= 2500 THEN
+        RAISE_APPLICATION_ERROR (-20900, 'Salary to low');
+    END IF;
+END proc_salary;
+/
+DECLARE
+    v_salary NUMBER;
+BEGIN
+    SELECT salary INTO v_salary
+    FROM pr_employees
+    WHERE emp_id = 24;
+    proc_salary(v_salary);
+END;
+/
+--Captura de errores / recording error
+CREATE TABLE error_log (
+    ERROR_CODE      INTEGER,
+    error_msg       VARCHAR2(4000),
+    backtrace       CLOB,
+    callstack       CLOB,
+    created_on      DATE,
+    created_by      VARCHAR2(30)
+    );
+/
+--se puede usar en las exceptiones / It can be used in exceptions
+/*
+EXCEPTION
+   WHEN OTHERS
+   THEN
+      DECLARE
+         l_code   INTEGER := SQLCODE;
+      BEGIN
+         INSERT INTO error_log
+              VALUES (l_code
+                    ,  sys.DBMS_UTILITY.format_error_stack
+                    ,  sys.DBMS_UTILITY.format_error_backtrace
+                    ,  sys.DBMS_UTILITY.format_call_stack
+                    ,  SYSDATE
+                    ,  USER);
+         RAISE;
+      END;
+**Pero es demasiado codigo, y si se cambia la tabla error_log, se debera cambiar cada objeto que tiene este codigo
+--------------------------------------------------------
+**But it is too much code, and if the error_log table is changed, each object that this code has to be changed must be changed
+*/
+--Se usara un procedimiento almacenado / A stored procedure will be used
+CREATE OR REPLACE PROCEDURE record_error IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_code  PLS_INTEGER := SQLCODE;
+    l_mssg  VARCHAR2(32767) := SQLERRM;
+BEGIN
+    INSERT INTO error_log (error_code,
+                            error_msg,
+                            backtrace,
+                            callstack,
+                            created_on,
+                            created_by)
+                VALUES (l_code,
+                        l_mssg,
+                        sys.DBMS_UTILITY.format_error_backtrace,
+                        sys.DBMS_UTILITY.format_call_stack,
+                        SYSDATE,
+                        USER);
+    COMMIT;
+
+END record_error;
+/
+--Ahora lo podemos usar en la seccion de excepciones / Now we can use it in the exception section
+/*
+EXCEPTION
+   WHEN OTHERS
+   THEN
+      record_error();
+      RAISE;
+*/
+DECLARE
+    f2 UTL_FILE.file_type; --se declara la variable f2 como tipo fila
+    v1 VARCHAR(256);
+BEGIN
+    f2 := UTL_FILE.fopen('DIR_DENTI', 'factura_ventas.txt', 'r');
+    UTL_FILE.get_line(f2, v1);
+    dbms_output.put_line(v1);
+EXCEPTION
+   WHEN OTHERS THEN
+      record_error();
+      RAISE;
+END;
+/
+--Exceptions and rollbacks
+BEGIN
+    DELETE FROM pr_employees
+        WHERE job_id = 3;
+    UPDATE pr_employees
+        SET salary = salary * 20;
+EXCEPTION
+    WHEN OTHERS THEN
+    ROLLBACK;
+        record_error();
+        DECLARE
+            l_count integer;
+        BEGIN
+            SELECT COUNT(1) INTO l_count
+                FROM pr_employees
+                WHERE job_id = 3;
+            DBMS_OUTPUT.put_line (l_count);
+            RAISE;
+        END;
+END;
+/*
+The DELETE is completed successfully, but then Oracle Database raises the ORA-01438 error when trying to execute the UPDATE statement. 
+I catch the error and display the number of rows in the Employees table WHERE job_id = 3. 
+“0” is displayed, because the failure of the UPDATE statement did not cause a rollback in the session.
+After I display the count, however, I reraise the same exception. 
+Because there is no enclosing block and this outermost block terminates with an unhandled exception, any changes made in this block are rolled back by the database.
+So after this block is run, the employees in JOB 3 will still be in the table.
+*/
